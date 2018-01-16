@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::hash::Hash;
 use std::ops::Deref;
 use std::ops::Index;
+use std::iter::Extend;
 
 pub trait MapLike<K, V> {
     fn get<'m>(&'m self, k: &K) -> Option<&'m V>;
@@ -57,6 +58,8 @@ pub trait BidiMap<'a, K1, K2> {
 
     fn get1(&self, k2: &K2) -> Option<&K1>;
     fn get2(&self, k1: &K1) -> Option<&K2>;
+
+    fn len(&self) -> usize;
 }
 
 pub struct HashBidiMap<K1, K2> {
@@ -92,6 +95,22 @@ where
     fn get2(&self, k1: &K1) -> Option<&K2> {
         self.left_to_right.get(k1).map(Deref::deref)
     }
+
+    fn len(&self) -> usize {
+        self.left_to_right.len()
+    }
+}
+
+impl<'a, K1, K2> Extend<(K1, K2)> for HashBidiMap<K1, K2>
+    where HashBidiMap<K1, K2> : BidiMap<'a, K1, K2>
+{
+    fn extend<T>(&mut self, iter: T)
+    where T: IntoIterator<Item = (K1, K2)>
+    {
+        for (k1, k2) in iter {
+            self.insert(k1, k2);
+        }
+    }
 }
 
 impl<A, B> HashBidiMap<A, B>
@@ -100,7 +119,7 @@ where
     B: Eq + Hash,
 {
     pub fn new() -> Self {
-        HashBidiMap {
+        Self {
             left_to_right: HashMap::new(),
             right_to_left: HashMap::new(),
         }
@@ -114,7 +133,6 @@ mod tests {
     #[test]
     fn get() {
         let mut map = HashBidiMap::new();
-
         map.insert(1, "2");
         assert_eq!(Some(&"2"), map.get2(&1));
         assert_eq!(Some(&1), map.get1(&"2"));
@@ -128,5 +146,23 @@ mod tests {
         map.insert(2, "3");
         assert_eq!(Some(&2), map.get1(&"3"));
         assert_eq!(None, map.get1(&"2"));
+    }
+
+    #[test]
+    fn len() {
+        let mut map = HashBidiMap::new();
+        assert_eq!(0, map.len());
+
+        map.insert("1", 1);
+        map.insert("2", 2);
+        assert_eq!(2, map.len());
+    }
+
+    #[test]
+    fn extend() {
+        let mut map = HashBidiMap::new();
+        map.extend(vec!((1, "a"), (2, "b")));
+        assert_eq!(Some(&1), map.get1(&"a"));
+        assert_eq!(Some(&"a"), map.get2(&1));
     }
 }
