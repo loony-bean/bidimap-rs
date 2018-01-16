@@ -1,0 +1,6 @@
+[package]
+name = "bidimap"
+version = "0.1.0"
+authors = ["Alexey Suslov <alexey.suslov@gmail.com>"]
+
+[dependencies]
