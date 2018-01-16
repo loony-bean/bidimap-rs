@@ -7,6 +7,7 @@ use std::iter::Extend;
 
 pub trait MapLike<K, V> {
     fn get<'m>(&'m self, k: &K) -> Option<&'m V>;
+    fn contains_key(&self, k: &K) -> bool;
 }
 
 pub struct LeftMap<'parent, K1: 'parent, K2: 'parent> {
@@ -21,11 +22,19 @@ impl<'a, K1, K2> MapLike<K1, K2> for LeftMap<'a, K1, K2> {
     fn get<'m>(&'m self, k: &K1) -> Option<&'m K2> {
         self.bidi.get2(k)
     }
+
+    fn contains_key(&self, k: &K1) -> bool {
+        self.bidi.contains_key1(k)
+    }
 }
 
 impl<'a, K1, K2> MapLike<K2, K1> for RightMap<'a, K1, K2> {
     fn get<'m>(&'m self, k: &K2) -> Option<&'m K1> {
         self.bidi.get1(k)
+    }
+
+    fn contains_key(&self, k: &K2) -> bool {
+        self.bidi.contains_key2(k)
     }
 }
 
@@ -58,6 +67,9 @@ pub trait BidiMap<'a, K1, K2> {
 
     fn get1(&self, k2: &K2) -> Option<&K1>;
     fn get2(&self, k1: &K1) -> Option<&K2>;
+
+    fn contains_key1(&self, k1: &K1) -> bool;
+    fn contains_key2(&self, k2: &K2) -> bool;
 
     fn len(&self) -> usize;
 }
@@ -94,6 +106,14 @@ where
 
     fn get2(&self, k1: &K1) -> Option<&K2> {
         self.left_to_right.get(k1).map(Deref::deref)
+    }
+
+    fn contains_key1(&self, k1: &K1) -> bool {
+        self.left_to_right.contains_key(k1)
+    }
+
+    fn contains_key2(&self, k2: &K2) -> bool {
+        self.right_to_left.contains_key(k2)
     }
 
     fn len(&self) -> usize {
@@ -164,5 +184,19 @@ mod tests {
         map.extend(vec!((1, "a"), (2, "b")));
         assert_eq!(Some(&1), map.get1(&"a"));
         assert_eq!(Some(&"a"), map.get2(&1));
+    }
+
+    #[test]
+    fn contains_key() {
+        let mut map = HashBidiMap::new();
+        map.extend(vec!((1, "a"), (2, "b")));
+
+        assert_eq!(true, map.as_map().contains_key(&1));
+        assert_eq!(true, map.as_inv_map().contains_key(&"b"));
+
+        assert_eq!(true, map.contains_key1(&1));
+        assert_eq!(true, map.contains_key2(&"b"));
+        assert_eq!(false, map.contains_key1(&3));
+        assert_eq!(false, map.contains_key2(&"c"));
     }
 }
