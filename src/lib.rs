@@ -4,6 +4,7 @@ use std::hash::Hash;
 use std::ops::Deref;
 use std::ops::Index;
 use std::iter::Extend;
+use std::iter::FromIterator;
 
 pub trait MapLike<K, V> {
     fn get<'m>(&'m self, k: &K) -> Option<&'m V>;
@@ -133,6 +134,22 @@ impl<'a, K1, K2> Extend<(K1, K2)> for HashBidiMap<K1, K2>
     }
 }
 
+impl<K1, K2> FromIterator<(K1, K2)> for HashBidiMap<K1, K2>
+where
+    K1: Eq + Hash,
+    K2: Eq + Hash,
+{
+    fn from_iter<I: IntoIterator<Item=(K1, K2)>>(iter: I) -> Self {
+        let mut map = Self::new();
+
+        for (k1, k2) in iter {
+            map.insert(k1, k2);
+        }
+
+        map
+    }
+}
+
 impl<A, B> HashBidiMap<A, B>
 where
     A: Eq + Hash,
@@ -198,5 +215,12 @@ mod tests {
         assert_eq!(true, map.contains_key2(&"b"));
         assert_eq!(false, map.contains_key1(&3));
         assert_eq!(false, map.contains_key2(&"c"));
+    }
+
+    #[test]
+    fn collect() {
+        let map: HashBidiMap<_, _> = vec!((1, "a"), (2, "b")).into_iter().collect();
+        assert_eq!(Some(&1), map.get1(&"a"));
+        assert_eq!(Some(&"a"), map.get2(&1));
     }
 }
